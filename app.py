@@ -1,21 +1,33 @@
 from flask import Flask, request, jsonify
 import pandas as pd
 from datetime import datetime
+import os
 
 app = Flask(__name__)
 
-def load():
-    return pd.read_excel("users.xlsx")
+FILE = "users.xlsx"
 
-def save(df):
-    df.to_excel("users.xlsx", index=False)
+def load_users():
+    try:
+        return pd.read_excel(FILE)
+    except:
+        df = pd.DataFrame(columns=["email","plan","expiry","usage"])
+        df.to_excel(FILE, index=False)
+        return df
+
+def save_users(df):
+    df.to_excel(FILE, index=False)
+
+@app.route("/")
+def home():
+    return "IRN License Server is Running"
 
 @app.route("/check_license", methods=["POST"])
 def check_license():
-    email = request.json["email"]
-    df = load()
+    email = request.json.get("email")
+    df = load_users()
 
-    user = df[df.email == email]
+    user = df[df["email"] == email]
 
     if user.empty:
         return jsonify({"plan":"free","usage":0,"limit":50})
@@ -32,16 +44,19 @@ def check_license():
     })
 
 @app.route("/increment_usage", methods=["POST"])
-def inc():
-    email = request.json["email"]
-    df = load()
+def increment_usage():
+    email = request.json.get("email")
+    df = load_users()
 
-    if email in df.email.values:
-        df.loc[df.email==email, "usage"] += 1
+    if email in df["email"].values:
+        df.loc[df.email == email, "usage"] += 1
     else:
         df.loc[len(df)] = [email,"free","2099-01-01",1]
 
-    save(df)
-    return {"status":"ok"}
+    save_users(df)
+    return jsonify({"status":"ok"})
 
-app.run()
+# ===== MUST BIND TO RENDER PORT =====
+if __name__ == "__main__":
+    port = int(os.environ.get("PORT", 10000))
+    app.run(host="0.0.0.0", port=port)
