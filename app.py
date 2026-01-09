@@ -18,12 +18,23 @@ def load_users():
 def save_users(df):
     df.to_excel(FILE, index=False)
 
-@app.route("/")
+# 🔥 ADD CORS HEADERS
+@app.after_request
+def add_cors_headers(resp):
+    resp.headers["Access-Control-Allow-Origin"] = "*"
+    resp.headers["Access-Control-Allow-Headers"] = "Content-Type"
+    resp.headers["Access-Control-Allow-Methods"] = "POST, OPTIONS"
+    return resp
+
+@app.route("/", methods=["GET"])
 def home():
     return "IRN License Server is Running"
 
-@app.route("/check_license", methods=["POST"])
+@app.route("/check_license", methods=["POST","OPTIONS"])
 def check_license():
+    if request.method == "OPTIONS":
+        return "", 200
+
     email = request.json.get("email")
     df = load_users()
 
@@ -43,8 +54,11 @@ def check_license():
         "limit":50
     })
 
-@app.route("/increment_usage", methods=["POST"])
+@app.route("/increment_usage", methods=["POST","OPTIONS"])
 def increment_usage():
+    if request.method == "OPTIONS":
+        return "", 200
+
     email = request.json.get("email")
     df = load_users()
 
@@ -56,7 +70,6 @@ def increment_usage():
     save_users(df)
     return jsonify({"status":"ok"})
 
-# ===== MUST BIND TO RENDER PORT =====
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 10000))
     app.run(host="0.0.0.0", port=port)
